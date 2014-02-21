@@ -1,0 +1,7 @@
+
+- draw into an off-screen buffer, then dilate/erode/colour that.
+- deal mostly with images (care of PIL)
+
+- framework for animating things with pauses for user input
+    - base object should be animatable
+    - list of python functions, pausing for user between each
