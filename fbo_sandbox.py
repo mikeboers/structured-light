@@ -41,8 +41,8 @@ class App(object):
         gl.bindTexture(gl.TEXTURE_2D, self.render_texture)
         gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, self.width, self.height, 0, gl.RGB, gl.UNSIGNED_BYTE, 0)
 
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR)
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR)
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST)
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST)
 
         gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, self.render_texture, 0)
 
@@ -50,13 +50,36 @@ class App(object):
         gl.bindFramebuffer(gl.FRAMEBUFFER, 0)
 
 
-        self.shader = Shader('''
+
+        self.fixed = Shader('''
             void main(void) {
                 gl_Position = ftransform();
             }
         ''', '''
             void main(void) {
-                gl_FragColor = vec4(gl_FragCoord.x / 400.0, gl_FragCoord.y / 300.0, 0.0, 1.0);
+                gl_FragColor = vec4(1.0, 1.0, 1.0, 1.0);
+            }
+        ''')
+
+
+        self.shader = Shader('''
+            void main(void) {
+                gl_Position = ftransform();
+                gl_TexCoord[0] = gl_MultiTexCoord0;
+            }
+        ''', '''
+            uniform sampler2D texture1;
+            uniform float width, height;
+            void main(void) {
+
+                vec4 texel = vec4(0.0, 0.0, 0.0, 1.0);
+                for (float x = -2.0; x < 2.5; x++) {
+                    for (float y = -2.0; y < 2.5; y++) {
+                        texel = max(texel, texture2D(texture1, gl_TexCoord[0].st + vec2(x / width, y / height)));
+                    }
+                }
+
+                gl_FragColor = texel * vec4(gl_FragCoord.x / 400.0, gl_FragCoord.y / 300.0, 0.0, 1.0);
             }
         ''')
 
@@ -100,13 +123,13 @@ class App(object):
         gl.bindFramebuffer(gl.FRAMEBUFFER, self.fbo)
 
         # Wipe the window.
-        gl.disable('depth_test')
+        gl.enable('depth_test')
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 
         gl.loadIdentity()
         
         gl.disable('texture_2d')
-
+        self.fixed.use()
         gl.color(1, 1, 1, 1)
         with gl.begin('polygon'):
             gl.vertex(0, 0)
@@ -124,14 +147,20 @@ class App(object):
         gl.bindFramebuffer(gl.FRAMEBUFFER, 0)
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
         gl.enable('texture_2d')
-        # gl.enable('depth_test')
+        gl.enable('depth_test')
         gl.color(1, 1, 1, 1)
 
-        # self.shader.use()
-        location = -1 # gl.getUniformLocation(self.shader._prog, "sampler")
-        print location
+        print 'I need to print so it doesnt explode.'
+        self.shader.use()
+        location = gl.getUniformLocation(self.shader._prog, "texture1")
         if location >= 0:
             gl.uniform1i(location, 0)
+        location = gl.getUniformLocation(self.shader._prog, "width")
+        if location >= 0:
+            gl.uniform1f(location, float(self.width))
+        location = gl.getUniformLocation(self.shader._prog, "height")
+        if location >= 0:
+            gl.uniform1f(location, float(self.height))
 
         with gl.begin('polygon'):
             gl.texCoord(0, 0)
@@ -142,8 +171,6 @@ class App(object):
             gl.vertex(self.width / 2, self.height / 2)
             gl.texCoord(0, 1)
             gl.vertex(0, self.height / 2)
-
-        # self.shader.unuse()
 
         glut.swapBuffers()
 

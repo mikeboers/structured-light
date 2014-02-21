@@ -125,6 +125,7 @@ class Shader(object):
         gl.useProgram(self._prog)
 
     def unuse(self):
-        gl.useProgram(0)
+        pass
+        # gl.useProgram(0)
 
 
