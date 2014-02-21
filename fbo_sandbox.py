@@ -6,7 +6,7 @@ import math
 import random
 import os
 
-from mygl import gl, glu, glut
+from mygl import gl, glu, glut, Shader
 
 
 class App(object):
@@ -49,6 +49,16 @@ class App(object):
 
         gl.bindFramebuffer(gl.FRAMEBUFFER, 0)
 
+
+        self.shader = Shader('''
+            void main(void) {
+                gl_Position = ftransform();
+            }
+        ''', '''
+            void main(void) {
+                gl_FragColor = vec4(gl_FragCoord.x / 400.0, gl_FragCoord.y / 300.0, 0.0, 1.0);
+            }
+        ''')
 
         # Attach some GLUT event callbacks.
         glut.reshapeFunc(self.reshape)
@@ -97,7 +107,7 @@ class App(object):
         
         gl.disable('texture_2d')
 
-        gl.color(1, 1, 0, 1)
+        gl.color(1, 1, 1, 1)
         with gl.begin('polygon'):
             gl.vertex(0, 0)
             gl.vertex(400, 0)
@@ -116,17 +126,24 @@ class App(object):
         gl.enable('texture_2d')
         # gl.enable('depth_test')
         gl.color(1, 1, 1, 1)
+
+        # self.shader.use()
+        location = -1 # gl.getUniformLocation(self.shader._prog, "sampler")
+        print location
+        if location >= 0:
+            gl.uniform1i(location, 0)
+
         with gl.begin('polygon'):
             gl.texCoord(0, 0)
             gl.vertex(0, 0)
             gl.texCoord(1, 0)
-            gl.vertex(200, 0)
+            gl.vertex(self.width / 2, 0)
             gl.texCoord(1, 1)
-            gl.vertex(200, 200)
+            gl.vertex(self.width / 2, self.height / 2)
             gl.texCoord(0, 1)
-            gl.vertex(0, 200)
+            gl.vertex(0, self.height / 2)
 
-
+        # self.shader.unuse()
 
         glut.swapBuffers()
 

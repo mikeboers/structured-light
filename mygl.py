@@ -1,12 +1,12 @@
 '''Mikes wrapper for the visualizer???'''
 from contextlib import contextmanager
 
-from OpenGL.GLUT import *
-from OpenGL.GLU import *
-from OpenGL.GL.framebufferobjects import *
-from OpenGL.GL import *
 import OpenGL
-
+import OpenGL.GLUT
+import OpenGL.GLU
+import OpenGL.GL
+import OpenGL.GL.framebufferobjects
+import OpenGL.GL.shaders
 
 __all__ = '''
     gl
@@ -111,3 +111,20 @@ class GLProxy(ModuleProxy):
 gl = GLProxy('gl', OpenGL.GL, OpenGL.GL.framebufferobjects)
 glu = ModuleProxy('glu', OpenGL.GLU)
 glut = ModuleProxy('glut', OpenGL.GLUT)
+
+
+class Shader(object):
+
+    def __init__(self, vert_src, frag_src):
+        self._vert = OpenGL.GL.shaders.compileShader(vert_src, gl.VERTEX_SHADER)
+        self._frag = OpenGL.GL.shaders.compileShader(frag_src, gl.FRAGMENT_SHADER)
+        self._prog = OpenGL.GL.shaders.compileProgram(self._vert, self._frag)
+        self._locations = {}
+
+    def use(self):
+        gl.useProgram(self._prog)
+
+    def unuse(self):
+        gl.useProgram(0)
+
+
