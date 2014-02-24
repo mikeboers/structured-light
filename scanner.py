@@ -116,7 +116,7 @@ class App(object):
             self.scan()
         elif key == 'r':
             self.stepper = self.iter_scan()
-            next(self.stpper)
+            next(self.stepper)
         elif key == 'x':
             if not self.stepper:
                 self.stepper = self.iter_scan()
@@ -276,13 +276,13 @@ class App(object):
 
     def info_stage(self):
 
+        i = 0
         for power in xrange(1, 4):
             blocks = 2**power
 
             dx = self.width / float(blocks)
             dy = self.height / float(blocks)
 
-            i = 0
             for x in xrange(blocks):
                 for y in xrange(blocks):
                     
@@ -297,7 +297,7 @@ class App(object):
                     if not i:
                         yield
 
-            yield
+        yield
 
 
         for power in xrange(1, 5):
