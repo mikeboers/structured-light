@@ -233,10 +233,10 @@ class App(object):
         self.shader.uniform1f('bits', bits)
         self.shader.uniform1f('code_count', code_count)
 
-        for axis in (0, 1):
-            self.shader.uniform1i('axis', axis)
-            for bit in range(max_bits):
-                self.shader.uniform1f('bit', bit)
+        for bit in range(max_bits):
+            self.shader.uniform1f('bit', bit)
+            for axis in (0, 1):
+                self.shader.uniform1i('axis', axis)
                 self.polyfill()
                 yield
 
