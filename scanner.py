@@ -136,10 +136,10 @@ class App(object):
     def tick(self):
         next_frame = self.last_frame + 1.0 / self.frame_rate
         delta = next_frame - time.time()
-        if delta < 0:
+        if delta < -0.004: # Window is 45deg of 1/30, or 1/240, or ~0.008.
             self.dropped = True
             print 'dropped frame; out by %dms' % abs(1000 * delta)
-        else:
+        elif delta > 0:
             time.sleep(delta)
         self.last_frame = next_frame
 
