@@ -130,6 +130,8 @@ class App(object):
         gl.loadIdentity()
         gl.ortho(0, width, 0, height, -100, 100)
         gl.matrixMode(gl.MODELVIEW)
+        gl.loadIdentity()
+        gl.translate(0.5, 0.5, 0)
         
     def timer(self, value):
         self.frame += 1
