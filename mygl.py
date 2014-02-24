@@ -1,5 +1,6 @@
 '''Mikes wrapper for the visualizer???'''
 from contextlib import contextmanager
+from functools import partial
 
 import OpenGL
 import OpenGL.GLUT
@@ -119,13 +120,31 @@ class Shader(object):
         self._vert = OpenGL.GL.shaders.compileShader(vert_src, gl.VERTEX_SHADER)
         self._frag = OpenGL.GL.shaders.compileShader(frag_src, gl.FRAGMENT_SHADER)
         self._prog = OpenGL.GL.shaders.compileProgram(self._vert, self._frag)
-        self._locations = {}
+        self._uniforms = {}
 
     def use(self):
         gl.useProgram(self._prog)
 
     def unuse(self):
-        pass
-        # gl.useProgram(0)
+        gl.useProgram(0)
+
+    def __getattr__(self, name):
+        if name.startswith('uniform'):
+            func = partial(self._uniform, name)
+            setattr(self, name, func)
+            return func
+        raise AttributeError(name)
+
+    def _uniform(self, funcname, name, *args):
+        try:
+            location = self._uniforms[name]
+        except KeyError:
+            location = gl.getUniformLocation(self._prog, name)
+            self._uniforms[name] = location
+        if location < 0:
+            raise NameError('no uniform %r' % name)
+        return getattr(gl, funcname)(location, *args)
+
+
 
 

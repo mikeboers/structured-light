@@ -43,13 +43,15 @@ class App(object):
 
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST)
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST)
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
 
         gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, self.render_texture, 0)
 
 
         gl.bindFramebuffer(gl.FRAMEBUFFER, 0)
 
-        self.dilate = 2
+        self.dilate = 0
 
         self.fixed = Shader('''
             void main(void) {
@@ -60,7 +62,6 @@ class App(object):
                 gl_FragColor = vec4(1.0, 1.0, 1.0, 1.0);
             }
         ''')
-
 
         self.shader = Shader('''
             void main(void) {
@@ -75,15 +76,16 @@ class App(object):
 
                 float dmin = -dilate;
                 float dmax = dilate + 0.5;
+                float dx = 1.0;
 
                 vec4 texel = vec4(0.0, 0.0, 0.0, 1.0);
-                for (float x = dmin; x < dmax; x++) {
-                    for (float y = dmin; y < dmax; y++) {
+                for (float x = dmin; x < dmax; x+=dx) {
+                    for (float y = dmin; y < dmax; y+=dx) {
                         texel = max(texel, texture2D(texture1, gl_TexCoord[0].st + vec2(x / width, y / height)));
                     }
                 }
 
-                gl_FragColor = texel * vec4(gl_FragCoord.x / 400.0, gl_FragCoord.y / 300.0, 0.0, 1.0);
+                gl_FragColor = texel * vec4(gl_FragCoord.x / width, gl_FragCoord.y / height, 0.0, 1.0);
             }
         ''')
 
@@ -111,7 +113,7 @@ class App(object):
         elif key == 'a':
             self.dilate += 1
         elif key == 'z':
-            self.dilate -= 1
+            self.dilate = max(0, self.dilate - 1)
         else:
             print 'unknown key %r at %s,%d' % (key, mx, my)
             
