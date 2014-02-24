@@ -25,7 +25,7 @@ class App(object):
     
         # Initialize GLUT and out render buffer.
         glut.init(argv)
-        glut.initDisplayMode(glut.DOUBLE | glut.RGBA | glut.DEPTH | glut.MULTISAMPLE)
+        glut.initDisplayMode(glut.DOUBLE | glut.RGB)
         # glut.initDisplayMode(2048)
     
         # Initialize the window.
@@ -35,15 +35,7 @@ class App(object):
         glut.createWindow(argv[0])
 
         gl.clearColor(0, 0, 0, 1)
-    
-        # Turn on a bunch of OpenGL options.
-        # gl.enable(gl.CULL_FACE)
-        # gl.enable(gl.DEPTH_TEST)
-        # gl.enable(gl.COLOR_MATERIAL)
-        # gl.enable('blend')
-        # gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA)
-        # gl.enable('multisample')
-        
+            
         self.gray_texture = gl.genTextures(1)
         gl.activeTexture(gl.TEXTURE0)
         gl.bindTexture(gl.TEXTURE_2D, self.gray_texture)
@@ -87,16 +79,11 @@ class App(object):
 
         self.stages = [
             self.gray_stage,
-            self.binary_stage,
+            # self.binary_stage,
             self.grid_stage,
         ]
         self.stepper = None
 
-        self.last_frame = 0
-        self.blank = True
-        self.dropped = False
-
-        # Attach some GLUT event callbacks.
         glut.reshapeFunc(self.reshape)
         glut.displayFunc(self.display)
         glut.keyboardFunc(self.keyboard)
@@ -105,7 +92,7 @@ class App(object):
         
     
     def keyboard(self, key, mx, my):
-        if key == '\x1b': # ESC
+        if key in ('q', '\x1b'): # ESC
             exit(0)
         elif key == 'f':
             glut.fullScreen()
@@ -151,7 +138,7 @@ class App(object):
         delta = next_frame - time.time()
         if delta < 0:
             self.dropped = True
-            print 'dropped frame; out by %dms' % abs(delta)
+            print 'dropped frame; out by %dms' % abs(1000 * delta)
         else:
             time.sleep(delta)
         self.last_frame = next_frame
@@ -170,7 +157,7 @@ class App(object):
 
             self.tick()
 
-            gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
+            gl.clear(gl.COLOR_BUFFER_BIT)
             glut.swapBuffers()
             self.tick()
 
@@ -188,7 +175,7 @@ class App(object):
         for stage in stages:
             while True:
 
-                gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
+                gl.clear(gl.COLOR_BUFFER_BIT)
                 gl.color(1, 1, 1, 1)
 
                 try:
@@ -255,14 +242,14 @@ class App(object):
         max_bits = max(int(math.log(self.width - 1, 2)), int(math.log(self.height - 1, 2))) + 1
         assert max_bits < 16
 
-        for power in xrange(4, max_bits):
+        for power in xrange(2, max_bits):
             size = 2**power
-            gl.lineWidth(2)
+            gl.lineWidth(power - 1)
             with gl.begin(gl.LINES):
-                for x in xrange(0, self.width, size):
+                for x in xrange(size, self.width, size):
                     gl.vertex(x, 0, 0)
                     gl.vertex(x, self.height, 0)
-                for y in xrange(0, self.height, size):
+                for y in xrange(size, self.height, size):
                     gl.vertex(0, y, 0)
                     gl.vertex(self.width, y, 0)
             yield
@@ -271,10 +258,10 @@ class App(object):
         self.polyfill()
         yield
 
+
     def display(self):
-    
-        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
-        gl.color(0.25, 0.25, 0.25, 1)
+        gl.clear(gl.COLOR_BUFFER_BIT)
+        gl.color(0, 0.125, 0.25, 1)
         self.polyfill()
         glut.swapBuffers()
 
