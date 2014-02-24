@@ -1,17 +1,19 @@
 from __future__ import division
 
+import ctypes
 import sys
 import time
 import math
 import random
 import os
+from array import array
 
 from mygl import gl, glu, glut, Shader
+from OpenGL.arrays.vbo import VBO
 
 
-graycodes = [(i >> i) ^ i for i in xrange(4096)]
-gray = [[graycodes[i] & (2**b) for i in xrange(4096)] for b in xrange(16)]
-
+graycodes = [(i >> i) ^ i for i in xrange(2048)]
+gray = [[graycodes[i] & (2**b) for i in xrange(2048)] for b in xrange(8)]
 
 class App(object):
     
@@ -19,8 +21,7 @@ class App(object):
     
         # Initialize GLUT and out render buffer.
         glut.init(argv)
-        glut.initDisplayMode(glut.DOUBLE | glut.RGBA | glut.DEPTH | glut.MULTISAMPLE)
-        # glut.initDisplayMode(2048)
+        glut.initDisplayMode(2048 | glut.DOUBLE | glut.RGBA | glut.DEPTH | glut.MULTISAMPLE)
     
         # Initialize the window.
         self.width = 800
@@ -38,33 +39,41 @@ class App(object):
         # gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA)
         # gl.enable('multisample')
         
-        self.texture = gl.genTextures(1)
-        gl.bindTexture(gl.TEXTURE_2D, self.texture)
-        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RED, 4096, 16, 0, gl.RED, gl.FLOAT, sum(gray, []))
+        self.vdata = (ctypes.c_float * 12)(
+            0, 0, 0,
+            1, 0, 0,
+            1, 1, 0,
+            0, 1, 0,
+        )
+        self.vbo = VBO(self.vdata)
+        self.vbo.bind()
 
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST)
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST)
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
-
+        # gl.enableClientState(gl.VERTEX_ARRAY)
 
         self.shader = Shader('''
+            #version 330
+
+            layout(location = 0)in vec4 vert;
 
             void main(void) {
-                gl_Position = gl_ModelViewProjectionMatrix * gl_Vertex;
-                gl_TexCoord[0] = gl_MultiTexCoord0;
+                // gl_Position = gl_ModelViewProjectionMatrix * gl_Vertex;
+                // gl_TexCoord[0] = gl_MultiTexCoord0;
+
+                gl_Position = vert;
+
             }
         ''', '''
+            #version 330
 
-            uniform sampler2D texture;
-            uniform int bit_idx;
-            uniform int axis;
+            out vec4 fragColor;
 
             void main(void) {
 
-                int i = int(floor(axis > 0 ? gl_FragCoord.y : gl_FragCoord.x));
-                float v = texture2D(texture, vec2(float(i) / 2048.0, float(bit_idx) / 16.0)).r;
-                gl_FragColor = vec4(v, v, v, 1.0);
+                //int x = int(floor(gl_FragCoord.x));
+                //int y = int(floor(gl_FragCoord.y));
+
+                //float v = float(gray[x]);
+                fragColor = vec4(1.0, 0.5, 0.25, 1.0);
             }
 
         ''')
@@ -76,7 +85,7 @@ class App(object):
         glut.displayFunc(self.display)
         glut.keyboardFunc(self.keyboard)
         
-        self.frame_rate = 24.0 #12.0
+        self.frame_rate = 24.0
         glut.timerFunc(int(1000 / self.frame_rate), self.timer, 0)
         
     
@@ -85,24 +94,17 @@ class App(object):
             exit(0)
         elif key == 'f':
             glut.fullScreen()
-        elif key == ' ':
-            self.frame += 1
         else:
             print 'unknown key %r at %s,%d' % (key, mx, my)
-
-        glut.postRedisplay()
             
     def run(self):
         return glut.mainLoop()
 
     def reshape(self, width, height):
         """Called when the user reshapes the window."""
-
         self.width = width
         self.height = height
         
-        print 'reshape to', width, height
-
         gl.viewport(0, 0, width, height)
         gl.matrixMode(gl.PROJECTION)
         gl.loadIdentity()
@@ -110,7 +112,7 @@ class App(object):
         gl.matrixMode(gl.MODELVIEW)
         
     def timer(self, value):
-        # self.frame += 1
+        self.frame += 1
         glut.postRedisplay()
         glut.timerFunc(int(1000 / self.frame_rate), self.timer, 0)
 
@@ -121,13 +123,10 @@ class App(object):
         gl.enable('depth_test')
         gl.color(1, 1, 1, 1)
 
-        max_bits = max(int(math.log(self.width, 2)), int(math.log(self.height, 2))) + 1
-        assert max_bits < 16
         self.shader.use()
-        self.shader.uniform1i('axis', self.frame // max_bits % 2)
-        self.shader.uniform1i('bit_idx', 1 + self.frame % max_bits)
-
-        # self.shader.uniform1i('texture', gl.TEXTURE0)
+        # self.shader.uniform1i('bit_index', 1)
+        bit = self.frame % 8
+        self.shader.uniform1iv('gray', len(gray[bit]), gray[bit])
 
         with gl.begin('polygon'):
             gl.texCoord(0, 0)
