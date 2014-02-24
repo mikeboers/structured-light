@@ -5,13 +5,18 @@ import time
 import math
 import random
 import os
+import itertools
 
 from mygl import gl, glu, glut, Shader
 
 
-graycodes = [(i >> 1) ^ i for i in xrange(4096)]
-# graycodes = range(4096)
-gray = [[graycodes[i] & (2**b) for i in xrange(4096)] for b in xrange(16)]
+bits = 12
+code_count = 2**bits
+gray_codes = [(i >> 1) ^ i for i in xrange(code_count)]
+gray_bits = [[gray_codes[i] & (2**b) for i in xrange(code_count)] for b in xrange(bits)]
+
+binary_codes = range(code_count)
+binary_bits = [[binary_codes[i] & (2**b) for i in xrange(code_count)] for b in xrange(bits)]
 
 
 class App(object):
@@ -39,15 +44,23 @@ class App(object):
         # gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA)
         # gl.enable('multisample')
         
-        self.texture = gl.genTextures(1)
-        gl.bindTexture(gl.TEXTURE_2D, self.texture)
-        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RED, 4096, 16, 0, gl.RED, gl.FLOAT, sum(gray, []))
-
+        self.gray_texture = gl.genTextures(1)
+        gl.activeTexture(gl.TEXTURE0)
+        gl.bindTexture(gl.TEXTURE_2D, self.gray_texture)
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RED, code_count, bits, 0, gl.RED, gl.FLOAT, sum(gray_bits, []))
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST)
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST)
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
 
+        self.binary_texture = gl.genTextures(1)
+        gl.activeTexture(gl.TEXTURE1)
+        gl.bindTexture(gl.TEXTURE_2D, self.binary_texture)
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RED, code_count, bits, 0, gl.RED, gl.FLOAT, sum(binary_bits, []))
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST)
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST)
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
 
         self.shader = Shader('''
 
@@ -56,14 +69,15 @@ class App(object):
             }
         ''', '''
 
+            uniform float bits, code_count;
             uniform sampler2D texture;
-            uniform int bit_idx;
+            uniform float bit;
             uniform int axis;
 
             void main(void) {
 
-                int i = int(floor(axis > 0 ? gl_FragCoord.y : gl_FragCoord.x));
-                float v = texture2D(texture, vec2(float(i) / 4096.0, float(bit_idx) / 16.0)).r;
+                float i = floor(axis > 0 ? gl_FragCoord.y : gl_FragCoord.x);
+                float v = texture2D(texture, vec2(i / code_count, bit / bits)).r;
                 gl_FragColor = vec4(v, v, v, 1.0);
             }
 
@@ -71,12 +85,28 @@ class App(object):
 
         self.frame = 0
 
+        self.stages = [
+            self.start_stage,
+            self.gray_stage,
+            self.separator,
+            self.binary_stage,
+            self.end_stage,
+        ]
+        self.stagesx = [
+            self.separator,
+        ]
+        self.stage_iter = None
+
+        self.last_frame = 0
+        self.blank = True
+        self.dropped = False
+
         # Attach some GLUT event callbacks.
         glut.reshapeFunc(self.reshape)
         glut.displayFunc(self.display)
         glut.keyboardFunc(self.keyboard)
         
-        self.frame_rate = 24.0 #12.0
+        self.frame_rate = 60.0
         glut.timerFunc(int(1000 / self.frame_rate), self.timer, 0)
         
     
@@ -95,6 +125,7 @@ class App(object):
     def run(self):
         return glut.mainLoop()
 
+
     def reshape(self, width, height):
         """Called when the user reshapes the window."""
 
@@ -110,30 +141,103 @@ class App(object):
         gl.matrixMode(gl.MODELVIEW)
         
     def timer(self, value):
-        # self.frame += 1
+
+
+        next_frame = self.last_frame + 1.0 / self.frame_rate
+        delta = int(1000 * (next_frame - time.time()))
+
+        if delta < 0:
+            print 'dropped frame; out by %dms' % abs(delta)
+            self.dropped = True
+            self.last_frame = time.time() + 1.0 / self.frame_rate
+        else:
+            self.last_frame = next_frame
+
         glut.postRedisplay()
-        glut.timerFunc(int(1000 / self.frame_rate), self.timer, 0)
+        glut.timerFunc(max(0, delta), self.timer, 0)
 
-    def display(self):
-    
-        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
-        gl.enable('texture_2d')
-        gl.enable('depth_test')
-        gl.color(1, 1, 1, 1)
-
-        max_bits = max(int(math.log(self.width, 2)), int(math.log(self.height, 2))) + 1
-        assert max_bits < 16
-        self.shader.use()
-        self.shader.uniform1i('axis', self.frame // max_bits % 2)
-        self.shader.uniform1i('bit_idx', self.frame % max_bits)
-
-        # self.shader.uniform1i('texture', gl.TEXTURE0)
-
+    def polyfill(self):
         with gl.begin('polygon'):
             gl.vertex(0, 0)
             gl.vertex(1, 0)
             gl.vertex(1, 1)
             gl.vertex(0, 1)
+
+    def start_stage(self):
+
+        self.polyfill()
+        yield
+        self.polyfill()
+        yield
+
+        gl.color(0.0, 0.0, 0.0, 1.0)
+        self.polyfill()
+        yield
+
+    def separator(self):
+
+        self.polyfill()
+        yield
+        gl.color(0.0, 0.0, 0.0, 1.0)
+        self.polyfill()
+        yield
+
+    def end_stage(self):
+
+        gl.color(0.0, 0.0, 0.0, 1.0)
+        self.polyfill()
+        yield
+        gl.color(0.0, 0.0, 0.0, 1.0)
+        self.polyfill()
+        yield
+
+
+    def gray_stage(self, texture=0):
+        print 'gray_stage', texture
+
+        # Subtract 1 so that 1024 only takes 9 bits.
+        max_bits = max(int(math.log(self.width - 1, 2)), int(math.log(self.height - 1, 2))) + 1
+        assert max_bits < 16
+        self.shader.use()
+        self.shader.uniform1i('texture', texture)
+        self.shader.uniform1f('bits', bits)
+        self.shader.uniform1f('code_count', code_count)
+
+        for axis in (0, 1):
+            self.shader.uniform1i('axis', axis)
+            for bit in range(max_bits):
+                self.shader.uniform1f('bit', bit)
+                self.polyfill()
+                yield
+
+        self.shader.unuse()
+
+    def binary_stage(self):
+        return self.gray_stage(1)
+
+    def display(self):
+    
+        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
+
+        if not self.blank:
+            if self.dropped:
+                gl.color(1, 0, 0, 1)
+                self.dropped = False
+            else:
+                gl.color(1, 1, 1, 1)
+
+        while not self.blank:
+
+            if not self.stage_iter:
+                self.stage_iter = itertools.chain(*(stage() for stage in self.stages))
+            try:
+                next(self.stage_iter)
+            except StopIteration:
+                self.stage_iter = None
+            else:
+                break
+
+        self.blank = not self.blank
 
         glut.swapBuffers()
 

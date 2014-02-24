@@ -1,4 +1,7 @@
 
+- stages should be able to redraw the same screen again
+- fix timer to take into account frame duration
+
 - framework for animating things with pauses for user input
     - base object should be animatable
     - list of python functions, pausing for user between each
