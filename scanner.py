@@ -9,7 +9,8 @@ import os
 from mygl import gl, glu, glut, Shader
 
 
-graycodes = [(i >> i) ^ i for i in xrange(4096)]
+graycodes = [(i >> 1) ^ i for i in xrange(4096)]
+# graycodes = range(4096)
 gray = [[graycodes[i] & (2**b) for i in xrange(4096)] for b in xrange(16)]
 
 
@@ -52,7 +53,6 @@ class App(object):
 
             void main(void) {
                 gl_Position = gl_ModelViewProjectionMatrix * gl_Vertex;
-                gl_TexCoord[0] = gl_MultiTexCoord0;
             }
         ''', '''
 
@@ -63,7 +63,7 @@ class App(object):
             void main(void) {
 
                 int i = int(floor(axis > 0 ? gl_FragCoord.y : gl_FragCoord.x));
-                float v = texture2D(texture, vec2(float(i) / 2048.0, float(bit_idx) / 16.0)).r;
+                float v = texture2D(texture, vec2(float(i) / 4096.0, float(bit_idx) / 16.0)).r;
                 gl_FragColor = vec4(v, v, v, 1.0);
             }
 
@@ -106,7 +106,7 @@ class App(object):
         gl.viewport(0, 0, width, height)
         gl.matrixMode(gl.PROJECTION)
         gl.loadIdentity()
-        gl.ortho(0, width, 0, height, -100, 100)
+        gl.ortho(0, 1, 0, 1, -100, 100)
         gl.matrixMode(gl.MODELVIEW)
         
     def timer(self, value):
@@ -125,19 +125,15 @@ class App(object):
         assert max_bits < 16
         self.shader.use()
         self.shader.uniform1i('axis', self.frame // max_bits % 2)
-        self.shader.uniform1i('bit_idx', 1 + self.frame % max_bits)
+        self.shader.uniform1i('bit_idx', self.frame % max_bits)
 
         # self.shader.uniform1i('texture', gl.TEXTURE0)
 
         with gl.begin('polygon'):
-            gl.texCoord(0, 0)
             gl.vertex(0, 0)
-            gl.texCoord(1, 0)
-            gl.vertex(self.width, 0)
-            gl.texCoord(1, 1)
-            gl.vertex(self.width, self.height)
-            gl.texCoord(0, 1)
-            gl.vertex(0, self.height)
+            gl.vertex(1, 0)
+            gl.vertex(1, 1)
+            gl.vertex(0, 1)
 
         glut.swapBuffers()
 
