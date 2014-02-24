@@ -29,8 +29,8 @@ class App(object):
         # glut.initDisplayMode(2048)
     
         # Initialize the window.
-        self.width = 800
-        self.height = 600
+        self.width = 1024
+        self.height = 768
         glut.initWindowSize(self.width, self.height)
         glut.createWindow(argv[0])
 
@@ -86,14 +86,9 @@ class App(object):
         self.frame = 0
 
         self.stages = [
-            self.start_stage,
             self.gray_stage,
-            self.separator,
             self.binary_stage,
-            self.end_stage,
-        ]
-        self.stagesx = [
-            self.separator,
+            self.grid_stage,
         ]
         self.stage_iter = None
 
@@ -107,7 +102,6 @@ class App(object):
         glut.keyboardFunc(self.keyboard)
         
         self.frame_rate = 60.0
-        glut.timerFunc(int(1000 / self.frame_rate), self.timer, 0)
         
     
     def keyboard(self, key, mx, my):
@@ -116,15 +110,12 @@ class App(object):
         elif key == 'f':
             glut.fullScreen()
         elif key == ' ':
-            self.frame += 1
+            self.scan()
         else:
             print 'unknown key %r at %s,%d' % (key, mx, my)
-
-        glut.postRedisplay()
             
     def run(self):
         return glut.mainLoop()
-
 
     def reshape(self, width, height):
         """Called when the user reshapes the window."""
@@ -137,63 +128,74 @@ class App(object):
         gl.viewport(0, 0, width, height)
         gl.matrixMode(gl.PROJECTION)
         gl.loadIdentity()
-        gl.ortho(0, 1, 0, 1, -100, 100)
+        gl.ortho(0, self.width, 0, self.height, -100, 100)
         gl.matrixMode(gl.MODELVIEW)
-        
-    def timer(self, value):
+       
+    def reset_timer(self):
+        self.last_frame = time.time()
+        self.dropped = False
 
-
+    def tick(self):
         next_frame = self.last_frame + 1.0 / self.frame_rate
-        delta = int(1000 * (next_frame - time.time()))
-
+        delta = next_frame - time.time()
         if delta < 0:
-            print 'dropped frame; out by %dms' % abs(delta)
             self.dropped = True
-            self.last_frame = time.time() + 1.0 / self.frame_rate
+            print 'dropped frame; out by %dms' % abs(delta)
         else:
-            self.last_frame = next_frame
+            time.sleep(delta)
+        self.last_frame = next_frame
 
-        glut.postRedisplay()
-        glut.timerFunc(max(0, delta), self.timer, 0)
+    def scan(self):
+
+        self.reset_timer()
+
+        stages = [stage() for stage in self.stages]
+        for stage in stages:
+            while True:
+
+                gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
+                gl.color(1, 1, 1, 1)
+
+                try:
+                    next(stage)
+                except StopIteration:
+                    break
+
+                glut.swapBuffers()
+                self.tick()
+
+                gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
+                glut.swapBuffers()
+                self.tick()
+
+                if self.dropped:
+                    gl.color(1, 0, 0, 1)
+                    self.polyfill()
+                    glut.swapBuffers()
+                    time.sleep(0.5)
+                    return
 
     def polyfill(self):
         with gl.begin('polygon'):
             gl.vertex(0, 0)
-            gl.vertex(1, 0)
-            gl.vertex(1, 1)
-            gl.vertex(0, 1)
-
-    def start_stage(self):
-
-        self.polyfill()
-        yield
-        self.polyfill()
-        yield
-
-        gl.color(0.0, 0.0, 0.0, 1.0)
-        self.polyfill()
-        yield
-
-    def separator(self):
-
-        self.polyfill()
-        yield
-        gl.color(0.0, 0.0, 0.0, 1.0)
-        self.polyfill()
-        yield
-
-    def end_stage(self):
-
-        gl.color(0.0, 0.0, 0.0, 1.0)
-        self.polyfill()
-        yield
-        gl.color(0.0, 0.0, 0.0, 1.0)
-        self.polyfill()
-        yield
-
+            gl.vertex(self.width, 0)
+            gl.vertex(self.width, self.height)
+            gl.vertex(0, self.height)
 
     def gray_stage(self, texture=0):
-        print 'gray_stage', texture
+
+        if not texture:
+            gl.color(0, 1, 0, 1)
+        else:
+            gl.color(0, 1, 1, 1)
+        self.polyfill()
+        yield
+
+        gl.color(1, 1, 1, 1)
+        self.polyfill()
+        yield
+
+        yield
 
         # Subtract 1 so that 1024 only takes 9 bits.
         max_bits = max(int(math.log(self.width - 1, 2)), int(math.log(self.height - 1, 2))) + 1
@@ -212,33 +214,43 @@ class App(object):
 
         self.shader.unuse()
 
+        gl.color(1, 0, 1, 1)
+        self.polyfill()
+        yield
+
     def binary_stage(self):
         return self.gray_stage(1)
+
+    def grid_stage(self):
+
+        gl.color(0, 0, 1, 1)
+        self.polyfill()
+        yield
+
+        max_bits = max(int(math.log(self.width - 1, 2)), int(math.log(self.height - 1, 2))) + 1
+        assert max_bits < 16
+
+        for power in xrange(4, max_bits):
+            size = 2**power
+            gl.lineWidth(2)
+            with gl.begin(gl.LINES):
+                for x in xrange(0, self.width, size):
+                    gl.vertex(x, 0, 0)
+                    gl.vertex(x, self.height, 0)
+                for y in xrange(0, self.height, size):
+                    gl.vertex(0, y, 0)
+                    gl.vertex(self.width, y, 0)
+            yield
+
+        gl.color(1, 0, 1, 1)
+        self.polyfill()
+        yield
 
     def display(self):
     
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
-
-        if not self.blank:
-            if self.dropped:
-                gl.color(1, 0, 0, 1)
-                self.dropped = False
-            else:
-                gl.color(1, 1, 1, 1)
-
-        while not self.blank:
-
-            if not self.stage_iter:
-                self.stage_iter = itertools.chain(*(stage() for stage in self.stages))
-            try:
-                next(self.stage_iter)
-            except StopIteration:
-                self.stage_iter = None
-            else:
-                break
-
-        self.blank = not self.blank
-
+        gl.color(0.25, 0.25, 0.25, 1)
+        self.polyfill()
         glut.swapBuffers()
 
         

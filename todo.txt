@@ -1,6 +1,23 @@
 
-- stages should be able to redraw the same screen again
-- fix timer to take into account frame duration
+- README
+    - calibrate before every scan; consider having the grid on a stand
+      behind the subject
+    - don't move around the room
+
+- see if I can have the keyboard handler draw several frames
+    - it will then do a full iteration
+    - display handler will draw a warning grid
+    - self.start_timer resets the last_frame and dropped_frames
+    - self.tick waits for the next frame
+    - blast red as soon as it drops a frame
+
+- use 3 digit binary for status codes:
+    4 -> error
+    1 to 7 can be start/stop of various things
+        2, 1 for gray
+        3, 5 for binary
+        6, 7 for grids
+        block of 4 if there was an error
 
 - framework for animating things with pauses for user input
     - base object should be animatable
