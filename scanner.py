@@ -1,5 +1,6 @@
 from __future__ import division
 
+import argparse
 import sys
 import time
 import math
@@ -77,11 +78,26 @@ class App(object):
 
         self.frame = 0
 
-        self.stages = [
-            self.gray_stage,
-            # self.binary_stage,
-            self.grid_stage,
-        ]
+        parser = argparse.ArgumentParser()
+        parser.add_argument('-g', '--gray', action='store_true')
+        parser.add_argument('-b', '--binary', action='store_true')
+        parser.add_argument('-r', '--grid', action='store_true')
+        parser.add_argument('-i', '--info', action='store_true')
+        args = parser.parse_args(argv[1:])
+
+        self.stages = []
+        if args.gray:
+            self.stages.append(self.gray_stage)
+        if args.binary:
+            self.stages.append(self.binary_stage)
+        if args.grid:
+            self.stages.append(self.grid_stage)
+        if args.info:
+            self.stages.append(self.info_stage)
+        if not self.stages:
+            parser.print_usage()
+            exit(1)
+
         self.stepper = None
 
         glut.reshapeFunc(self.reshape)
@@ -257,6 +273,54 @@ class App(object):
         gl.color(1, 0, 1, 1)
         self.polyfill()
         yield
+
+    def info_stage(self):
+
+        for power in xrange(1, 4):
+            blocks = 2**power
+
+            dx = self.width / float(blocks)
+            dy = self.height / float(blocks)
+
+            i = 0
+            for x in xrange(blocks):
+                for y in xrange(blocks):
+                    
+                    i = (i + 1) % 3
+                    gl.color(int(i == 0), int(i == 1), int(i == 2), 1)
+                    with gl.begin(gl.POLYGON):
+                        gl.vertex(dx *  x     , dy *  y)
+                        gl.vertex(dx * (x + 1), dy *  y)
+                        gl.vertex(dx * (x + 1), dy * (y + 1))
+                        gl.vertex(dx *  x     , dy * (y + 1))
+
+                    if not i:
+                        yield
+
+            yield
+
+
+        for power in xrange(1, 5):
+            blocks = 2**power
+
+            dx = self.width / float(blocks)
+            dy = self.height / float(blocks)
+
+            for i in xrange(blocks):
+
+                with gl.begin(gl.POLYGON):
+                    gl.vertex(dx * i, 0)
+                    gl.vertex(dx * (i + 1), 0)
+                    gl.vertex(dx * (i + 1), self.height)
+                    gl.vertex(dx * i, self.height)
+                yield
+
+                with gl.begin(gl.POLYGON):
+                    gl.vertex(0         , dy * i)
+                    gl.vertex(self.width, dy * i)
+                    gl.vertex(self.width, dy * (i + 1))
+                    gl.vertex(0         , dy * (i + 1))
+                yield
 
 
     def display(self):
