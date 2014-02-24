@@ -90,7 +90,7 @@ class App(object):
             self.binary_stage,
             self.grid_stage,
         ]
-        self.stage_iter = None
+        self.stepper = None
 
         self.last_frame = 0
         self.blank = True
@@ -111,6 +111,17 @@ class App(object):
             glut.fullScreen()
         elif key == ' ':
             self.scan()
+        elif key == 'r':
+            self.stepper = self.iter_scan()
+            next(self.stpper)
+        elif key == 'x':
+            if not self.stepper:
+                self.stepper = self.iter_scan()
+            try:
+                next(self.stepper)
+            except StopIteration:
+                self.stepper = None
+
         else:
             print 'unknown key %r at %s,%d' % (key, mx, my)
             
@@ -149,6 +160,30 @@ class App(object):
 
         self.reset_timer()
 
+        scan_iter = self.iter_scan()
+        while True:
+
+            try:
+                next(scan_iter)
+            except StopIteration:
+                break
+
+            self.tick()
+
+            gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
+            glut.swapBuffers()
+            self.tick()
+
+            if self.dropped:
+                gl.color(1, 0, 0, 1)
+                self.polyfill()
+                glut.swapBuffers()
+                time.sleep(0.5)
+                return
+
+
+    def iter_scan(self):
+
         stages = [stage() for stage in self.stages]
         for stage in stages:
             while True:
@@ -162,18 +197,8 @@ class App(object):
                     break
 
                 glut.swapBuffers()
-                self.tick()
+                yield
 
-                gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
-                glut.swapBuffers()
-                self.tick()
-
-                if self.dropped:
-                    gl.color(1, 0, 0, 1)
-                    self.polyfill()
-                    glut.swapBuffers()
-                    time.sleep(0.5)
-                    return
 
     def polyfill(self):
         with gl.begin('polygon'):
@@ -198,7 +223,7 @@ class App(object):
         yield
 
         # Subtract 1 so that 1024 only takes 9 bits.
-        max_bits = max(int(math.log(self.width - 1, 2)), int(math.log(self.height - 1, 2))) + 1
+        max_bits = max(int(math.log(self.width, 2)), int(math.log(self.height, 2)))
         assert max_bits < 16
         self.shader.use()
         self.shader.uniform1i('texture', texture)
