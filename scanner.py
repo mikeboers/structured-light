@@ -69,7 +69,7 @@ class App(object):
 
             void main(void) {
 
-                float i = floor(axis > 0 ? gl_FragCoord.y : gl_FragCoord.x);
+                float i = floor(axis > 0 ? gl_FragCoord.y: gl_FragCoord.x);
                 float v = texture2D(texture, vec2(i / code_count, bit / bits)).r;
                 gl_FragColor = vec4(v, v, v, 1.0);
             }
@@ -83,6 +83,7 @@ class App(object):
         parser.add_argument('-b', '--binary', action='store_true')
         parser.add_argument('-r', '--grid', action='store_true')
         parser.add_argument('-i', '--info', action='store_true')
+        parser.add_argument('-s', '--strobe', action='store_true')
         args = parser.parse_args(argv[1:])
 
         self.stages = []
@@ -94,6 +95,8 @@ class App(object):
             self.stages.append(self.grid_stage)
         if args.info:
             self.stages.append(self.info_stage)
+        if args.strobe:
+            self.stages.append(self.strobe_stage)
         if not self.stages:
             parser.print_usage()
             exit(1)
@@ -104,7 +107,7 @@ class App(object):
         glut.displayFunc(self.display)
         glut.keyboardFunc(self.keyboard)
         
-        self.frame_rate = 60.0
+        self.frame_rate = 30.0
         
     
     def keyboard(self, key, mx, my):
@@ -114,6 +117,7 @@ class App(object):
             glut.fullScreen()
         elif key == ' ':
             self.scan()
+            glut.postRedisplay()
         elif key == 'r':
             self.stepper = self.iter_scan()
             next(self.stepper)
@@ -226,8 +230,12 @@ class App(object):
         yield
 
         # Subtract 1 so that 1024 only takes 9 bits.
-        max_bits = max(int(math.log(self.width, 2)), int(math.log(self.height, 2)))
+        max_bits = int(math.ceil(max(math.log(self.width, 2), math.log(self.height, 2))))
         assert max_bits < 16
+        assert self.width <= 2**max_bits
+        assert self.height <= 2**max_bits
+        assert self.width > 2**(max_bits-1) or self.height > 2**(max_bits-1)
+
         self.shader.use()
         self.shader.uniform1i('texture', texture)
         self.shader.uniform1f('bits', bits)
@@ -259,20 +267,23 @@ class App(object):
         assert max_bits < 16
 
         for power in xrange(2, max_bits):
-            size = 2**power
             gl.lineWidth(power - 1)
-            with gl.begin(gl.LINES):
-                for x in xrange(size, self.width, size):
-                    gl.vertex(x, 0, 0)
-                    gl.vertex(x, self.height, 0)
-                for y in xrange(size, self.height, size):
-                    gl.vertex(0, y, 0)
-                    gl.vertex(self.width, y, 0)
+            self.grid(power)
             yield
 
         gl.color(1, 0, 1, 1)
         self.polyfill()
         yield
+
+    def grid(self, power):
+        size = 2**power
+        with gl.begin(gl.LINES):
+            for x in xrange(size, self.width, size):
+                gl.vertex(x, 0, 0)
+                gl.vertex(x, self.height, 0)
+            for y in xrange(size, self.height, size):
+                gl.vertex(0, y, 0)
+                gl.vertex(self.width, y, 0)
 
     def info_stage(self):
 
@@ -322,11 +333,34 @@ class App(object):
                     gl.vertex(0         , dy * (i + 1))
                 yield
 
+    def strobe_stage(self):
+        while True:
+            self.polyfill()
+            yield
+            yield
 
     def display(self):
         gl.clear(gl.COLOR_BUFFER_BIT)
         gl.color(0, 0.125, 0.25, 1)
         self.polyfill()
+
+        gl.color(0.5, 0.5, 0.125, 1)
+        for power in (1, 2):
+
+            gl.lineWidth((3 - power)**3)
+
+            dx = self.width // (2**power)
+            dy = self.height // (2**power)
+
+            with gl.begin(gl.LINES):
+                for x in xrange(dx, self.width, dx):
+                    gl.vertex(x, 0, 0)
+                    gl.vertex(x, self.height, 0)
+                for y in xrange(dy, self.height, dy):
+                    gl.vertex(0, y, 0)
+                    gl.vertex(self.width, y, 0)
+
+
         glut.swapBuffers()
 
         
