@@ -177,9 +177,9 @@ class App(object):
 
             self.tick()
 
-            gl.clear(gl.COLOR_BUFFER_BIT)
-            glut.swapBuffers()
-            self.tick()
+            # gl.clear(gl.COLOR_BUFFER_BIT)
+            # glut.swapBuffers()
+            # self.tick()
 
             if self.dropped:
                 gl.color(1, 0, 0, 1)
