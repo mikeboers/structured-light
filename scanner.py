@@ -84,7 +84,7 @@ class App(object):
         parser.add_argument('-r', '--grid', action='store_true')
         parser.add_argument('-i', '--info', action='store_true')
         parser.add_argument('-s', '--strobe', action='store_true')
-        parser.add_argument('-f', '--fps', type=float, default=60.0)
+        parser.add_argument('-f', '--fps', type=float, default=30.0)
         parser.add_argument('-n', '--noblack', action='store_true')
         args = parser.parse_args(argv[1:])
 
