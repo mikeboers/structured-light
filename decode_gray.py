@@ -85,7 +85,7 @@ def solve(images):
     print 'stereo rectify'
     cam_array = np.array(cam_points) / 1024 - 1
     proj_array = np.array(proj_points) / 1024 - 1
-    res, H1, H2 = cv2.stereoRectifyUncalibrated(cam_array.flat, proj_array.flat, F, on.shape[:2])
+    res, H1, H2 = cv2.stereoRectifyUncalibrated(cam_array, proj_array, F, on.shape[:2])
 
 
 
