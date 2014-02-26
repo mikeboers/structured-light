@@ -79,6 +79,8 @@ class App(object):
         self.frame = 0
 
         parser = argparse.ArgumentParser()
+        parser.add_argument('-m', '--mosaic', action='store_true')
+        parser.add_argument('-t', '--time', action='store_true')
         parser.add_argument('-g', '--gray', action='store_true')
         parser.add_argument('-b', '--binary', action='store_true')
         parser.add_argument('-r', '--grid', action='store_true')
@@ -89,6 +91,10 @@ class App(object):
         args = parser.parse_args(argv[1:])
 
         self.stages = []
+        if args.time:
+            self.stages.append(self.time_stage)
+        if args.mosaic:
+            self.stages.append(self.mosaic_stage)
         if args.gray:
             self.stages.append(self.gray_stage)
         if args.binary:
@@ -215,13 +221,64 @@ class App(object):
                 glut.swapBuffers()
                 yield
 
-
     def polyfill(self):
         with gl.begin('polygon'):
             gl.vertex(0, 0)
             gl.vertex(self.width, 0)
             gl.vertex(self.width, self.height)
             gl.vertex(0, self.height)
+
+    def mosaic_stage(self):
+        size = 64
+        for x in xrange(0, self.width, size):
+            for y in xrange(0, self.height, size):
+                gl.color(
+                    random.choice((0, 1)),
+                    random.choice((0, 1)),
+                    random.choice((0, 1))
+                )
+                with gl.begin(gl.POLYGON):
+                    gl.vertex(x, y)
+                    gl.vertex(x + size, y)
+                    gl.vertex(x + size, y + size)
+                    gl.vertex(x, y + size)
+        yield
+
+    def time_stage(self):
+
+        seconds = int(time.time())
+        blocks = [0, 0, 0]
+        while seconds:
+            seconds, block = divmod(seconds, 8)
+            blocks.append(block)
+
+        size = 8
+        for i, x in enumerate(xrange(0, self.width, size)):
+            bi = i % len(blocks)
+            block = blocks[bi]
+
+            if bi < 3:
+                pattern = (1, 0.5, 0)
+                gl.color(
+                    pattern[(bi + 0) % 3],
+                    pattern[(bi + 1) % 3],
+                    pattern[(bi + 2) % 3]
+                )
+
+            else:
+                gl.color(
+                    int(bool(block // 4)),
+                    int(bool(block // 2 % 2)),
+                    int(bool(block %  2))
+                )
+
+            with gl.begin(gl.POLYGON):
+                gl.vertex(x, 0)
+                gl.vertex(x + size, 0)
+                gl.vertex(x + size, self.height)
+                gl.vertex(x, self.height)
+        yield
+
 
     def gray_stage(self, texture=0):
 
@@ -353,10 +410,12 @@ class App(object):
         # gl.color(0, 0.0625, 0.125, 1)
         # self.polyfill()
 
-        gl.color(0.25, 0.25, 0.0625, 1)
-        for power in (1, 2):
+        gl.lineWidth(2)
+        gl.color(0.2, 0.2, 0.05, 1)
 
-            gl.lineWidth((3 - power)**3)
+        for power in (1, ):
+
+            # gl.lineWidth((3 - power) ** 2)
 
             dx = self.width // (2**power)
             dy = self.height // (2**power)
