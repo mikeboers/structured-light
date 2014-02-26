@@ -89,12 +89,21 @@ def decode_axis(on, off, images, prefix='x'):
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
+    parser.add_argument('-s', '--skip', action='store_true')
     parser.add_argument('-o', '--output', default='coord.jpg')
+    parser.add_argument('-b', '--bits', type=int, default=0)
     parser.add_argument('images', nargs='+')
     args = parser.parse_args()
 
+    paths = args.images
+    if args.skip:
+        paths = [args.images[i] for i in xrange(0, len(args.images), 2)]
+
+    if args.bits:
+        paths = paths[:2 + 2 * args.bits]
+    
     images = []
-    for path in args.images:
+    for path in paths:
         print 'reading {} ...'.format(path),
         image = cv2.imread(path)
         if image.dtype == np.uint8:

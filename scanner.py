@@ -84,6 +84,8 @@ class App(object):
         parser.add_argument('-r', '--grid', action='store_true')
         parser.add_argument('-i', '--info', action='store_true')
         parser.add_argument('-s', '--strobe', action='store_true')
+        parser.add_argument('-f', '--fps', type=float, default=60.0)
+        parser.add_argument('-n', '--noblack', action='store_true')
         args = parser.parse_args(argv[1:])
 
         self.stages = []
@@ -107,7 +109,8 @@ class App(object):
         glut.displayFunc(self.display)
         glut.keyboardFunc(self.keyboard)
         
-        self.frame_rate = 30.0
+        self.frame_rate = args.fps
+        self.no_black = args.noblack
         
     
     def keyboard(self, key, mx, my):
@@ -165,6 +168,11 @@ class App(object):
 
     def scan(self):
 
+        sync_to = 0.1
+        x = math.fmod(time.time(), sync_to)
+        x = sync_to - x
+        time.sleep(x)
+
         self.reset_timer()
 
         scan_iter = self.iter_scan()
@@ -177,9 +185,10 @@ class App(object):
 
             self.tick()
 
-            # gl.clear(gl.COLOR_BUFFER_BIT)
-            # glut.swapBuffers()
-            # self.tick()
+            if not self.no_black:
+                gl.clear(gl.COLOR_BUFFER_BIT)
+                glut.swapBuffers()
+                self.tick()
 
             if self.dropped:
                 gl.color(1, 0, 0, 1)
@@ -341,10 +350,10 @@ class App(object):
 
     def display(self):
         gl.clear(gl.COLOR_BUFFER_BIT)
-        gl.color(0, 0.125, 0.25, 1)
-        self.polyfill()
+        # gl.color(0, 0.0625, 0.125, 1)
+        # self.polyfill()
 
-        gl.color(0.5, 0.5, 0.125, 1)
+        gl.color(0.25, 0.25, 0.0625, 1)
         for power in (1, 2):
 
             gl.lineWidth((3 - power)**3)
