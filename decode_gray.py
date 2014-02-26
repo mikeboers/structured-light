@@ -2,7 +2,7 @@ from __future__ import division
 
 import argparse
 
-import cv2
+import cv, cv2
 import numpy as np
 
 
@@ -52,6 +52,42 @@ def remap(images):
     return accum
 
 
+def solve(images):
+
+    on = images[0]
+    off = images[1]
+    dist = distance(on, off)
+
+    print 'decoding x'
+    xcoords, width = decode_axis(on, off, images[2::2], 'x')
+    print 'decoding y'
+    ycoords, height = decode_axis(on, off, images[3::2], 'y')
+
+    cam_points = []
+    proj_points = []
+
+    for i in xrange(on.shape[0]):
+        print i / on.shape[0]
+        for j in xrange(on.shape[1]):
+            x = xcoords[i,j]
+            y = ycoords[i,j]
+            if dist[i,j] > 0.25:
+                cam_points.append((i, j))
+                proj_points.append((height - y - 1, x))
+
+    print len(cam_points), 'points'
+
+    print 'finding fundamental matrix'
+    cam_array = np.array(cam_points) / 1024 - 1
+    proj_array = np.array(proj_points) / 1024 - 1
+    F, status = cv2.findFundamentalMat(cam_array, proj_array, cv.CV_FM_RANSAC)
+
+    print 'stereo rectify'
+    cam_array = np.array(cam_points) / 1024 - 1
+    proj_array = np.array(proj_points) / 1024 - 1
+    res, H1, H2 = cv2.stereoRectifyUncalibrated(cam_array.flat, proj_array.flat, F, on.shape[:2])
+
+
 
 
 
@@ -89,9 +125,10 @@ def decode_axis(on, off, images, prefix='x'):
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('-s', '--skip', action='store_true', default=True)
+    parser.add_argument('-s', '--skip', action='store_true')
     parser.add_argument('-o', '--output', default='coord.jpg')
     parser.add_argument('-b', '--bits', type=int, default=11)
+    parser.add_argument('-x', '--solve', action='store_true')
     parser.add_argument('images', nargs='+')
     args = parser.parse_args()
 
@@ -113,5 +150,9 @@ if __name__ == '__main__':
         print image.shape, image.dtype
         images.append(image)
 
-    out = remap(images)
-    cv2.imwrite(args.output, out * 256)
+
+    if args.solve:
+        solve(images)
+    else:
+        out = remap(images)
+        cv2.imwrite(args.output, out * 256)
