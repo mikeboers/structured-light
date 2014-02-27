@@ -1,6 +1,7 @@
 from __future__ import division
 
 import argparse
+import os
 
 import cv, cv2
 import numpy as np
@@ -126,7 +127,7 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
     parser.add_argument('-s', '--skip', action='store_true')
-    parser.add_argument('-o', '--output', default='coord.jpg')
+    parser.add_argument('-o', '--output')
     parser.add_argument('-b', '--bits', type=int, default=11)
     parser.add_argument('-x', '--solve', action='store_true')
     parser.add_argument('images', nargs='+')
@@ -155,4 +156,6 @@ if __name__ == '__main__':
         solve(images)
     else:
         out = remap(images)
-        cv2.imwrite(args.output, out * 256)
+        out_path = args.output or (os.path.dirname(paths[0]) + '.jpg')
+        print out_path
+        cv2.imwrite(out_path, out * 256)
