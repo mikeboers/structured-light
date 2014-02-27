@@ -47,7 +47,7 @@ for image_i, path in enumerate(args.image):
         # TODO: move this back to the large frame.
         print '  refine corners'
         criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 10, 1.0)
-        cv2.cornerSubPix(image[...,1], corners, (5, 5), (-1,-1), criteria)
+        # cv2.cornerSubPix(image[...,1], corners, (5, 5), (-1,-1), criteria)
 
         cv2.drawChessboardCorners(image, pattern_size, corners, found)
 
@@ -75,4 +75,16 @@ print 'fovy:', fovy
 print 'focal_length:', focal_length
 print 'principal_point:', principal_point
 print 'aspect_ratio:', aspect_ratio
+
+
+if args.temp:
+    for image_i, path in enumerate(args.image):
+        image = cv2.imread(path)
+        w, h = image.shape[:2]
+        image = cv2.resize(image, (1024, int(1024 * w / h)))
+        image = cv2.undistort(image, camera_matrix, dist_coefs)
+
+        new_path = os.path.join(args.temp, os.path.basename(path) + '-square.jpg')
+        cv2.imwrite(new_path, image)
+
 
