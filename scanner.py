@@ -85,6 +85,7 @@ class App(object):
         parser.add_argument('-b', '--binary', action='store_true')
         parser.add_argument('-r', '--grid', action='store_true')
         parser.add_argument('-i', '--info', action='store_true')
+        parser.add_argument('-j', '--info2', action='store_true')
         parser.add_argument('-s', '--strobe', action='store_true')
         parser.add_argument('-f', '--fps', type=float, default=30.0)
         parser.add_argument('-n', '--noblack', action='store_true')
@@ -103,6 +104,8 @@ class App(object):
             self.stages.append(self.grid_stage)
         if args.info:
             self.stages.append(self.info_stage)
+        if args.info2:
+            self.stages.append(self.info_stage2)
         if args.strobe:
             self.stages.append(self.strobe_stage)
         if not self.stages:
@@ -351,7 +354,7 @@ class App(object):
                 gl.vertex(0, y, 0)
                 gl.vertex(self.width, y, 0)
 
-    def info_stage(self):
+    def info_stage2(self):
 
         i = 0
         for power in xrange(1, 4):
@@ -374,8 +377,7 @@ class App(object):
                     if not i:
                         yield
 
-        yield
-
+    def info_stage(self):
 
         for power in xrange(1, 5):
             blocks = 2**power
